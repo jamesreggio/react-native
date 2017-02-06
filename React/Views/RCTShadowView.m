@@ -625,6 +625,11 @@ static inline void RCTAssignSuggestedDimension(YGNodeRef cssNode, YGDimension di
 
 // Flex
 
+- (float)flex
+{
+  return YGNodeStyleGetFlex(_cssNode);
+}
+
 - (void)setFlex:(float)value
 {
   YGNodeStyleSetFlex(_cssNode, value);

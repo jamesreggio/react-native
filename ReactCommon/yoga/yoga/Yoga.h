@@ -152,6 +152,7 @@ YG_NODE_STYLE_PROPERTY(YGWrap, FlexWrap, flexWrap);
 YG_NODE_STYLE_PROPERTY(YGOverflow, Overflow, overflow);
 
 WIN_EXPORT void YGNodeStyleSetFlex(const YGNodeRef node, const float flex);
+WIN_EXPORT float YGNodeStyleGetFlex(const YGNodeRef node);
 YG_NODE_STYLE_PROPERTY(float, FlexGrow, flexGrow);
 YG_NODE_STYLE_PROPERTY(float, FlexShrink, flexShrink);
 YG_NODE_STYLE_PROPERTY_UNIT(YGValue, FlexBasis, flexBasis);
