@@ -19,7 +19,8 @@
 
 #import "RCTImageUtils.h"
 
-static const NSUInteger RCTMaxCachableDecodedImageSizeInBytes = 1048576; // 1MB
+static const NSUInteger RCTMaxCachableDecodedImageSizeInBytes = 10 * 1024 * 1024; // 10 MB
+static const NSUInteger RCTDecodedImageCacheSize = 0; // Unlimited
 
 static NSString *RCTCacheKeyForImage(NSString *imageTag, CGSize size, CGFloat scale,
                                      RCTResizeMode resizeMode, NSString *responseDate)
@@ -37,16 +38,18 @@ static NSString *RCTCacheKeyForImage(NSString *imageTag, CGSize size, CGFloat sc
 - (instancetype)init
 {
   _decodedImageCache = [NSCache new];
-  _decodedImageCache.totalCostLimit = 5 * 1024 * 1024; // 5MB
+  _decodedImageCache.totalCostLimit = RCTDecodedImageCacheSize;
 
   [[NSNotificationCenter defaultCenter] addObserver:self
                                            selector:@selector(clearCache)
                                                name:UIApplicationDidReceiveMemoryWarningNotification
                                              object:nil];
+#if 0
   [[NSNotificationCenter defaultCenter] addObserver:self
                                            selector:@selector(clearCache)
                                                name:UIApplicationWillResignActiveNotification
                                              object:nil];
+#endif
 
   return self;
 }
@@ -58,6 +61,7 @@ static NSString *RCTCacheKeyForImage(NSString *imageTag, CGSize size, CGFloat sc
 
 - (void)clearCache
 {
+  RCTLog(@"[cache] clearing cache");
   [_decodedImageCache removeAllObjects];
 }
 
@@ -72,6 +76,8 @@ static NSString *RCTCacheKeyForImage(NSString *imageTag, CGSize size, CGFloat sc
     [self->_decodedImageCache setObject:image
                                  forKey:cacheKey
                                    cost:bytes];
+  } else {
+    RCTLog(@"[cache] image too large for cache (size: %f key %@)", bytes, cacheKey);
   }
 }
 
