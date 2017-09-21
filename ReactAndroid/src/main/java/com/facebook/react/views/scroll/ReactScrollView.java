@@ -61,6 +61,10 @@ public class ReactScrollView extends ScrollView implements ReactClippingViewGrou
   private View mContentView;
   private ReactViewBackgroundManager mReactBackgroundManager;
 
+  private static final int INVALID_POINTER = -1;
+  private int mActivePointerId = INVALID_POINTER;
+  private int mLastMotionY;
+
   public ReactScrollView(ReactContext context) {
     this(context, null);
   }
@@ -177,6 +181,37 @@ public class ReactScrollView extends ScrollView implements ReactClippingViewGrou
   public boolean onInterceptTouchEvent(MotionEvent ev) {
     if (!mScrollEnabled) {
       return false;
+    }
+
+    //XXX hide this behavior behind a prop
+    if (getScrollY() == 0 && !canScrollVertically(-1)) {
+      final int action = ev.getAction();
+
+      switch (action & MotionEvent.ACTION_MASK) {
+        case MotionEvent.ACTION_MOVE: {
+          final int activePointerId = mActivePointerId;
+          if (activePointerId == INVALID_POINTER) {
+            break;
+          }
+
+          final int pointerIndex = ev.findPointerIndex(activePointerId);
+          if (pointerIndex == -1) {
+            break;
+          }
+
+          final int y = (int) ev.getY(pointerIndex);
+          if (y > mLastMotionY) {
+            return false;
+          }
+          break;
+        }
+
+        case MotionEvent.ACTION_DOWN: {
+          mLastMotionY = (int) ev.getY();
+          mActivePointerId = ev.getPointerId(0);
+          break;
+        }
+      }
     }
 
     if (super.onInterceptTouchEvent(ev)) {
