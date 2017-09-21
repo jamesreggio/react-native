@@ -160,6 +160,26 @@ public class ReactHorizontalScrollViewManager
     scrollView.setNestedScrollingEnabled(false);
   }
 
+  @Override
+  public void setBouncesTop(ReactHorizontalScrollView scrollView, boolean bounces) {
+    // No-op.
+  }
+
+  @Override
+  public void setBouncesBottom(ReactHorizontalScrollView scrollView, boolean bounces) {
+    // No-op.
+  }
+
+  @Override
+  public void setBouncesLeft(ReactHorizontalScrollView scrollView, boolean bounces) {
+    scrollView.setBouncesLeft(bounces);
+  }
+
+  @Override
+  public void setBouncesRight(ReactHorizontalScrollView scrollView, boolean bounces) {
+    scrollView.setBouncesRight(bounces);
+  }
+
   /**
    * When set, fills the rest of the scrollview with a color to avoid setting a background and
    * creating unnecessary overdraw.

@@ -27,6 +27,10 @@ public class ReactScrollViewCommandHelper {
   public static final int COMMAND_FLASH_SCROLL_INDICATORS = 3;
   public static final int COMMAND_BEGIN_NESTED_SCROLLING = 10;
   public static final int COMMAND_END_NESTED_SCROLLING = 11;
+  public static final int COMMAND_SET_BOUNCES_TOP = 20;
+  public static final int COMMAND_SET_BOUNCES_BOTTOM = 21;
+  public static final int COMMAND_SET_BOUNCES_LEFT = 22;
+  public static final int COMMAND_SET_BOUNCES_RIGHT = 23;
 
   public interface ScrollCommandHandler<T> {
     void scrollTo(T scrollView, ScrollToCommandData data);
@@ -34,6 +38,10 @@ public class ReactScrollViewCommandHelper {
     void flashScrollIndicators(T scrollView);
     void beginNestedScrolling(T scrollView);
     void endNestedScrolling(T scrollView);
+    void setBouncesTop(T scrollView, boolean bounces);
+    void setBouncesBottom(T scrollView, boolean bounces);
+    void setBouncesLeft(T scrollView, boolean bounces);
+    void setBouncesRight(T scrollView, boolean bounces);
   }
 
   public static class ScrollToCommandData {
@@ -68,7 +76,15 @@ public class ReactScrollViewCommandHelper {
         "beginNestedScrolling",
         COMMAND_BEGIN_NESTED_SCROLLING,
         "endNestedScrolling",
-        COMMAND_END_NESTED_SCROLLING
+        COMMAND_END_NESTED_SCROLLING,
+        "setBouncesTop",
+        COMMAND_SET_BOUNCES_TOP,
+        "setBouncesBottom",
+        COMMAND_SET_BOUNCES_BOTTOM,
+        "setBouncesLeft",
+        COMMAND_SET_BOUNCES_LEFT,
+        "setBouncesRight",
+        COMMAND_SET_BOUNCES_RIGHT
       );
   }
 
@@ -101,6 +117,18 @@ public class ReactScrollViewCommandHelper {
         return;
       case COMMAND_END_NESTED_SCROLLING:
         viewManager.endNestedScrolling(scrollView);
+        return;
+      case COMMAND_SET_BOUNCES_TOP:
+        viewManager.setBouncesTop(scrollView, args.getBoolean(0));
+        return;
+      case COMMAND_SET_BOUNCES_BOTTOM:
+        viewManager.setBouncesBottom(scrollView, args.getBoolean(0));
+        return;
+      case COMMAND_SET_BOUNCES_LEFT:
+        viewManager.setBouncesLeft(scrollView, args.getBoolean(0));
+        return;
+      case COMMAND_SET_BOUNCES_RIGHT:
+        viewManager.setBouncesRight(scrollView, args.getBoolean(0));
         return;
 
       default:

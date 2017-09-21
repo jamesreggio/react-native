@@ -49,6 +49,12 @@ public class ReactHorizontalScrollView extends NestedHorizontalScrollView implem
   private int mEndFillColor = Color.TRANSPARENT;
   private ReactViewBackgroundManager mReactBackgroundManager;
 
+  private boolean mBouncesLeft = true;
+  private boolean mBouncesRight = true;
+  private static final int INVALID_POINTER = -1;
+  private int mActivePointerId = INVALID_POINTER;
+  private int mLastMotionX;
+
   public ReactHorizontalScrollView(Context context) {
     this(context, null);
   }
@@ -87,6 +93,14 @@ public class ReactHorizontalScrollView extends NestedHorizontalScrollView implem
 
   public void setPagingEnabled(boolean pagingEnabled) {
     mPagingEnabled = pagingEnabled;
+  }
+
+  public void setBouncesLeft(boolean bounces) {
+    mBouncesLeft = bounces;
+  }
+
+  public void setBouncesRight(boolean bounces) {
+    mBouncesRight = bounces;
   }
 
   public void flashScrollIndicators() {
@@ -130,6 +144,42 @@ public class ReactHorizontalScrollView extends NestedHorizontalScrollView implem
   public boolean onInterceptTouchEvent(MotionEvent ev) {
     if (!mScrollEnabled) {
       return false;
+    }
+
+    if (
+      (!mBouncesLeft && !canScrollHorizontally(-1)) ||
+      (!mBouncesRight && !canScrollHorizontally(1))
+    ) {
+      final int action = ev.getAction();
+
+      switch (action & MotionEvent.ACTION_MASK) {
+        case MotionEvent.ACTION_DOWN: {
+          mLastMotionX = (int) ev.getX();
+          mActivePointerId = ev.getPointerId(0);
+          break;
+        }
+
+        case MotionEvent.ACTION_MOVE: {
+          final int activePointerId = mActivePointerId;
+          if (activePointerId == INVALID_POINTER) {
+            break;
+          }
+
+          final int pointerIndex = ev.findPointerIndex(activePointerId);
+          if (pointerIndex == -1) {
+            break;
+          }
+
+          final int x = (int) ev.getX(pointerIndex);
+          if (
+            (!canScrollHorizontally(-1) && x > mLastMotionX) ||
+            (!canScrollHorizontally(1) && x < mLastMotionX)
+          ) {
+            return false;
+          }
+          break;
+        }
+      }
     }
 
     if (super.onInterceptTouchEvent(ev)) {

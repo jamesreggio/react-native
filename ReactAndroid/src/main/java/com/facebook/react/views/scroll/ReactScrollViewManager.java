@@ -159,6 +159,26 @@ public class ReactScrollViewManager
     scrollView.setNestedScrollingEnabled(false);
   }
 
+  @Override
+  public void setBouncesTop(ReactScrollView scrollView, boolean bounces) {
+    scrollView.setBouncesTop(bounces);
+  }
+
+  @Override
+  public void setBouncesBottom(ReactScrollView scrollView, boolean bounces) {
+    scrollView.setBouncesBottom(bounces);
+  }
+
+  @Override
+  public void setBouncesLeft(ReactScrollView scrollView, boolean bounces) {
+    // No-op.
+  }
+
+  @Override
+  public void setBouncesRight(ReactScrollView scrollView, boolean bounces) {
+    // No-op.
+  }
+
   @ReactPropGroup(names = {
       ViewProps.BORDER_RADIUS,
       ViewProps.BORDER_TOP_LEFT_RADIUS,

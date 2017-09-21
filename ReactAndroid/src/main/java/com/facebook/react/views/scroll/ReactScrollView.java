@@ -63,6 +63,12 @@ public class ReactScrollView extends NestedScrollView implements ReactClippingVi
   private View mContentView;
   private ReactViewBackgroundManager mReactBackgroundManager;
 
+  private boolean mBouncesTop = true;
+  private boolean mBouncesBottom = true;
+  private static final int INVALID_POINTER = -1;
+  private int mActivePointerId = INVALID_POINTER;
+  private int mLastMotionY;
+
   public ReactScrollView(ReactContext context) {
     this(context, null);
   }
@@ -118,6 +124,14 @@ public class ReactScrollView extends NestedScrollView implements ReactClippingVi
 
   public void setScrollEnabled(boolean scrollEnabled) {
     mScrollEnabled = scrollEnabled;
+  }
+
+  public void setBouncesTop(boolean bounces) {
+    mBouncesTop = bounces;
+  }
+
+  public void setBouncesBottom(boolean bounces) {
+    mBouncesBottom = bounces;
   }
 
   public void flashScrollIndicators() {
@@ -179,6 +193,42 @@ public class ReactScrollView extends NestedScrollView implements ReactClippingVi
   public boolean onInterceptTouchEvent(MotionEvent ev) {
     if (!mScrollEnabled) {
       return false;
+    }
+
+    if (
+      (!mBouncesTop && !canScrollVertically(-1)) ||
+      (!mBouncesBottom && !canScrollVertically(1))
+    ) {
+      final int action = ev.getAction();
+
+      switch (action & MotionEvent.ACTION_MASK) {
+        case MotionEvent.ACTION_DOWN: {
+          mLastMotionY = (int) ev.getY();
+          mActivePointerId = ev.getPointerId(0);
+          break;
+        }
+
+        case MotionEvent.ACTION_MOVE: {
+          final int activePointerId = mActivePointerId;
+          if (activePointerId == INVALID_POINTER) {
+            break;
+          }
+
+          final int pointerIndex = ev.findPointerIndex(activePointerId);
+          if (pointerIndex == -1) {
+            break;
+          }
+
+          final int y = (int) ev.getY(pointerIndex);
+          if (
+            (!canScrollVertically(-1) && y > mLastMotionY) ||
+            (!canScrollVertically(1) && y < mLastMotionY)
+          ) {
+            return false;
+          }
+          break;
+        }
+      }
     }
 
     if (super.onInterceptTouchEvent(ev)) {
