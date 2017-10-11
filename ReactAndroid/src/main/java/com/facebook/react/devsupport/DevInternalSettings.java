@@ -17,6 +17,7 @@ import com.facebook.react.common.annotations.VisibleForTesting;
 import com.facebook.react.common.build.ReactBuildConfig;
 import com.facebook.react.modules.debug.interfaces.DeveloperSettings;
 import com.facebook.react.packagerconnection.PackagerConnectionSettings;
+import javax.annotation.Nullable;
 
 /**
  * Helper class for accessing developers settings that should not be accessed outside of the package
@@ -44,11 +45,14 @@ public class DevInternalSettings implements
 
   public DevInternalSettings(
       Context applicationContext,
+      @Nullable PackagerConnectionSettings packagerConnectionSettings,
       Listener listener) {
     mListener = listener;
     mPreferences = PreferenceManager.getDefaultSharedPreferences(applicationContext);
     mPreferences.registerOnSharedPreferenceChangeListener(this);
-    mPackagerConnectionSettings = new PackagerConnectionSettings(applicationContext);
+    mPackagerConnectionSettings = packagerConnectionSettings == null
+      ? new PackagerConnectionSettings(applicationContext)
+      : packagerConnectionSettings;
   }
 
   public PackagerConnectionSettings getPackagerConnectionSettings() {

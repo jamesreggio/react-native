@@ -13,6 +13,7 @@ import android.content.Context;
 
 import com.facebook.react.devsupport.interfaces.DevBundleDownloadListener;
 import com.facebook.react.devsupport.interfaces.DevSupportManager;
+import com.facebook.react.packagerconnection.PackagerConnectionSettings;
 
 import java.lang.reflect.Constructor;
 
@@ -43,6 +44,7 @@ public class DevSupportManagerFactory {
       enableOnCreate,
       null,
       null,
+      null,
       minNumShakes);
   }
 
@@ -52,6 +54,7 @@ public class DevSupportManagerFactory {
     @Nullable String packagerPathForJSBundleName,
     boolean enableOnCreate,
     @Nullable RedBoxHandler redBoxHandler,
+    @Nullable PackagerConnectionSettings packagerConnectionSettings,
     @Nullable DevBundleDownloadListener devBundleDownloadListener,
     int minNumShakes) {
     if (!enableOnCreate) {
@@ -75,6 +78,7 @@ public class DevSupportManagerFactory {
           String.class,
           boolean.class,
           RedBoxHandler.class,
+          PackagerConnectionSettings.class,
           DevBundleDownloadListener.class,
           int.class);
       return (DevSupportManager) constructor.newInstance(
@@ -83,6 +87,7 @@ public class DevSupportManagerFactory {
         packagerPathForJSBundleName,
         true,
         redBoxHandler,
+        packagerConnectionSettings,
         devBundleDownloadListener,
         minNumShakes);
     } catch (Exception e) {
