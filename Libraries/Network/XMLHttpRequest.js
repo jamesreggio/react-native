@@ -125,7 +125,7 @@ class XMLHttpRequest extends EventTarget(...XHR_EVENTS) {
   status: number = 0;
   timeout: number = 0;
   responseURL: ?string;
-  withCredentials: boolean = true
+  withCredentials: boolean = false
 
   upload: XMLHttpRequestEventTarget = new XMLHttpRequestEventTarget();
 
