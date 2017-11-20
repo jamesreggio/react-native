@@ -193,6 +193,7 @@ const Image = createReactClass({
     * blurRadius: the blur radius of the blur filter added to the image
     */
     blurRadius: PropTypes.number,
+    filter: PropTypes.string,
     /**
      * When the image is resized, the corners of the size specified
      * by `capInsets` will stay a fixed size, but the center content and borders

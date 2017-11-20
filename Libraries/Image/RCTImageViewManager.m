@@ -32,6 +32,7 @@ RCT_EXPORT_MODULE()
 }
 
 RCT_EXPORT_VIEW_PROPERTY(blurRadius, CGFloat)
+RCT_EXPORT_VIEW_PROPERTY(filter, NSString)
 RCT_EXPORT_VIEW_PROPERTY(capInsets, UIEdgeInsets)
 RCT_REMAP_VIEW_PROPERTY(defaultSource, defaultImage, UIImage)
 RCT_EXPORT_VIEW_PROPERTY(onLoadStart, RCTDirectEventBlock)

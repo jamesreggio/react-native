@@ -23,6 +23,7 @@
 @property (nonatomic, assign) UIImageRenderingMode renderingMode;
 @property (nonatomic, copy) NSArray<RCTImageSource *> *imageSources;
 @property (nonatomic, assign) CGFloat blurRadius;
+@property (nonatomic, assign) NSString *filter;
 @property (nonatomic, assign) RCTResizeMode resizeMode;
 
 @end

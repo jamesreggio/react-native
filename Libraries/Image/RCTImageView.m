@@ -129,6 +129,7 @@ RCT_NOT_IMPLEMENTED(- (instancetype)init)
   // Apply trilinear filtering to smooth out mis-sized images
   self.layer.minificationFilter = kCAFilterTrilinear;
   self.layer.magnificationFilter = kCAFilterTrilinear;
+//  self.layer.compositingFilter = @"multiplyBlendMode";
 
   super.image = image;
 }
@@ -139,6 +140,16 @@ RCT_NOT_IMPLEMENTED(- (instancetype)init)
   if (image != self.image) {
     [self updateWithImage:image];
   }
+}
+
+- (void)setFilter:(NSString *)filter
+{
+  self.layer.compositingFilter = filter;
+}
+
+- (NSString *)filter
+{
+  return self.layer.compositingFilter;
 }
 
 - (void)setBlurRadius:(CGFloat)blurRadius
