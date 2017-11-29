@@ -154,11 +154,11 @@ const Systrace = {
   setEnabled(enabled: boolean) {
     if (_enabled !== enabled) {
       if (__DEV__) {
-        if (enabled) {
-          global.nativeTraceBeginLegacy && global.nativeTraceBeginLegacy(TRACE_TAG_JS_VM_CALLS);
-        } else {
-          global.nativeTraceEndLegacy && global.nativeTraceEndLegacy(TRACE_TAG_JS_VM_CALLS);
-        }
+        // if (enabled) {
+        //   global.nativeTraceBeginLegacy && global.nativeTraceBeginLegacy(TRACE_TAG_JS_VM_CALLS);
+        // } else {
+        //   global.nativeTraceEndLegacy && global.nativeTraceEndLegacy(TRACE_TAG_JS_VM_CALLS);
+        // }
         if (_canInstallReactHook) {
           if (_useFiber) {
             if (enabled && global.performance === undefined) {
