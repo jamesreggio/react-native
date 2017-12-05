@@ -44,6 +44,9 @@ typedef NS_ENUM(unsigned int, meta_prop_t) {
   YGValue _paddingMetaProps[META_PROP_COUNT];
   YGValue _marginMetaProps[META_PROP_COUNT];
   YGValue _borderMetaProps[META_PROP_COUNT];
+
+  __weak RCTShadowView *_nativeSuperview;
+  NSMutableArray<RCTShadowView *> *_nativeSubviews;
 }
 
 + (YGConfigRef)yogaConfig
@@ -360,6 +363,11 @@ static void RCTProcessMetaPropsBorder(const YGValue metaProps[META_PROP_COUNT], 
 
     _reactSubviews = [NSMutableArray array];
 
+    _layoutOnly = NO;
+    _totalNativeSubviews = 0;
+    _nativeSubviews = [NSMutableArray array];
+    _nativeSuperview = nil;
+
     _yogaNode = YGNodeNewWithConfig([[self class] yogaConfig]);
     YGNodeSetContext(_yogaNode, (__bridge void *)self);
     YGNodeSetPrintFunc(_yogaNode, RCTPrint);
@@ -427,9 +435,14 @@ static void RCTProcessMetaPropsBorder(const YGValue metaProps[META_PROP_COUNT], 
     YGNodeInsertChild(_yogaNode, subview.yogaNode, (uint32_t)atIndex);
   }
   subview->_superview = self;
+  
   _didUpdateSubviews = YES;
   [self dirtyText];
   [self dirtyPropagation];
+
+  NSUInteger increase = subview.layoutOnly ? subview.totalNativeSubviews : 1;
+  _totalNativeSubviews += increase;
+  [self updateNativeSubviewCountInSuperview:increase];
 }
 
 - (void)removeReactSubview:(RCTShadowView *)subview
@@ -437,11 +450,16 @@ static void RCTProcessMetaPropsBorder(const YGValue metaProps[META_PROP_COUNT], 
   [subview dirtyText];
   [subview dirtyPropagation];
   _didUpdateSubviews = YES;
+
   subview->_superview = nil;
-  [_reactSubviews removeObject:subview];
   if (![self isYogaLeafNode]) {
     YGNodeRemoveChild(_yogaNode, subview.yogaNode);
   }
+  [_reactSubviews removeObject:subview];
+
+  NSUInteger decrease = subview.layoutOnly ? subview.totalNativeSubviews : 1;
+  _totalNativeSubviews -= decrease;
+  [self updateNativeSubviewCountInSuperview:-decrease];
 }
 
 - (NSArray<RCTShadowView *> *)reactSubviews
@@ -753,6 +771,64 @@ RCT_STYLE_PROPERTY(AspectRatio, aspectRatio, AspectRatio, float)
   _recomputeMargin = NO;
   _recomputePadding = NO;
   _recomputeBorder = NO;
+}
+
+/**
+ * Layout-only nodes.
+ */
+
+- (void)setLayoutOnly:(BOOL)layoutOnly
+{
+  RCTAssert(!_superview, @"Must remove superview first.");
+  RCTAssert(!_nativeSuperview, @"Must remove native superview first.");
+  RCTAssert(!_nativeSubviews.count, @"Must remove native subviews first.");
+  _layoutOnly = layoutOnly;
+}
+
+- (void)updateNativeSubviewCountInSuperview:(NSInteger)delta
+{
+  if (_layoutOnly) {
+    RCTShadowView *current = _superview;
+    while (current) {
+      current->_totalNativeSubviews += delta;
+      if (!current.layoutOnly) {
+        break;
+      }
+      current = current.superview;
+    }
+  }
+}
+
+- (NSUInteger)nativeOffsetForSubview:(RCTShadowView *)subview
+{
+  BOOL found = NO;
+  NSUInteger index = 0;
+
+  for (RCTShadowView *current in _reactSubviews) {
+    if (subview == current) {
+      found = YES;
+      break;
+    }
+    index += (current.layoutOnly ? current.totalNativeSubviews : 1);
+  }
+
+  RCTAssert(found, @"Subview not found.");
+  return index;
+}
+
+- (void)insertNativeSubview:(RCTShadowView *)subview atIndex:(NSInteger)atIndex
+{
+  RCTAssert(!_layoutOnly, @"Attempt to insert subview inside layout-only node.");
+  RCTAssert(!subview.layoutOnly, @"Attempt to layout-only subview.");
+
+  [_nativeSubviews insertObject:subview atIndex:atIndex];
+  subview->_nativeSuperview = self;
+}
+
+- (void)removeNativeSubview:(RCTShadowView *)subview
+{
+  [_nativeSubviews removeObject:subview];
+  subview->_nativeSuperview = nil;
 }
 
 @end

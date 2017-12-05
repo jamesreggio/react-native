@@ -37,6 +37,17 @@ typedef void (^RCTApplierBlock)(NSDictionary<NSNumber *, UIView *> *viewRegistry
 @interface RCTShadowView : NSObject <RCTComponent>
 
 /**
+ * Layout only nodes.
+ */
+
+@property (nonatomic, assign, readonly) BOOL layoutOnly;
+@property (nonatomic, assign, readonly) NSUInteger totalNativeSubviews;
+@property (nonatomic, strong, readonly) NSArray<RCTShadowView *> *nativeSubviews;
+@property (nonatomic, weak, readonly) RCTShadowView *nativeSuperview;
+- (void)insertNativeSubview:(RCTShadowView *)subview atIndex:(NSInteger)atIndex;
+- (void)removeNativeSubview:(RCTShadowView *)subview;
+
+/**
  * Yoga Config which will be used to create `yogaNode` property.
  * Override in subclass to enable special Yoga features.
  * Defaults to suitable to current device configuration.

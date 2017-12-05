@@ -662,6 +662,7 @@ static NSDictionary *deviceOrientationEventBody(UIDeviceOrientation orientation)
   }
 }
 
+//DONE
 /**
  * A method to be called from JS, which takes a container ID and then releases
  * all subviews for that container upon receipt.
@@ -685,6 +686,7 @@ RCT_EXPORT_METHOD(removeSubviewsFromContainerWithID:(nonnull NSNumber *)containe
        removeAtIndices:indices];
 }
 
+//DONE
 /**
  * Disassociates children from container. Doesn't remove from registries.
  * TODO: use [NSArray getObjects:buffer] to reuse same fast buffer each time.
@@ -721,6 +723,14 @@ RCT_EXPORT_METHOD(removeSubviewsFromContainerWithID:(nonnull NSNumber *)containe
 {
   for (id<RCTComponent> removedChild in children) {
     [container removeReactSubview:removedChild];
+  }
+}
+
+- (void)_removeNativeChildren:(NSArray<id<RCTComponent>> *)children
+          fromContainer:(RCTShadowView *)container
+{
+  for (id<RCTComponent> removedChild in children) {
+    [container removeNativeSubview:removedChild];
   }
 }
 
@@ -826,8 +836,7 @@ RCT_EXPORT_METHOD(replaceExistingNonRootView:(nonnull NSNumber *)reactTag
 RCT_EXPORT_METHOD(setChildren:(nonnull NSNumber *)containerTag
                   reactTags:(NSArray<NSNumber *> *)reactTags)
 {
-  RCTSetChildren(containerTag, reactTags,
-                 (NSDictionary<NSNumber *, id<RCTComponent>> *)_shadowViewRegistry);
+  RCTSetChildren(containerTag, reactTags, (NSDictionary<NSNumber *, id<RCTComponent>> *)_shadowViewRegistry);
 
   [self addUIBlock:^(__unused RCTUIManager *uiManager, NSDictionary<NSNumber *, UIView *> *viewRegistry){
 
@@ -850,6 +859,7 @@ static void RCTSetChildren(NSNumber *containerTag,
   }
 }
 
+//XXX redirect this guy
 RCT_EXPORT_METHOD(manageChildren:(nonnull NSNumber *)containerTag
                   moveFromIndices:(NSArray<NSNumber *> *)moveFromIndices
                   moveToIndices:(NSArray<NSNumber *> *)moveToIndices
@@ -876,6 +886,144 @@ RCT_EXPORT_METHOD(manageChildren:(nonnull NSNumber *)containerTag
   }];
 }
 
+- (NSArray<RCTShadowView *> *)_nativeChildrenToRemove:(NSArray<RCTShadowView *> *)children
+{
+  NSMutableArray<RCTShadowView *> *removed = [NSMutableArray arrayWithCapacity:children.count];
+  for (RCTShadowView *child in children) {
+    if (child.nativeSuperview) {
+      [removed addObject:child];
+      [child.nativeSuperview removeNativeSubview:child];
+    } else {
+      [removed addObjectsFromArray:[self _nativeChildrenToRemove:child.reactSubviews]];
+    }
+  }
+  return removed;
+}
+
+- (void)_manageShadowChildren:(NSNumber *)containerTag
+              moveFromIndices:(NSArray<NSNumber *> *)moveFromIndices
+                moveToIndices:(NSArray<NSNumber *> *)moveToIndices
+            addChildReactTags:(NSArray<NSNumber *> *)addChildReactTags
+                 addAtIndices:(NSArray<NSNumber *> *)addAtIndices
+              removeAtIndices:(NSArray<NSNumber *> *)removeAtIndices
+{
+  RCTShadowView *container = _shadowViewRegistry[containerTag];
+  RCTAssert(moveFromIndices.count == moveToIndices.count, @"moveFromIndices had size %tu, moveToIndices had size %tu", moveFromIndices.count, moveToIndices.count);
+  RCTAssert(addChildReactTags.count == addAtIndices.count, @"there should be at least one React child to add");
+
+  // Removes (both permanent and temporary moves) are using "before" indices
+  NSArray<id<RCTComponent>> *permanentlyRemovedChildren =
+  [self _childrenToRemoveFromContainer:container atIndices:removeAtIndices];
+  NSArray<id<RCTComponent>> *temporarilyRemovedChildren =
+  [self _childrenToRemoveFromContainer:container atIndices:moveFromIndices];
+
+  NSArray<id<RCTComponent>> *permanentlyRemovedNativeChildren =
+  [self _nativeChildrenToRemove:permanentlyRemovedChildren];
+  NSArray<id<RCTComponent>> *temporarilyRemovedNativeChildren =
+  [self _nativeChildrenToRemove:temporarilyRemovedChildren];
+
+  // SHADOW NODES
+  [self _removeChildren:permanentlyRemovedChildren fromContainer:container];
+  [self _removeChildren:temporarilyRemovedChildren fromContainer:container];
+  [self _purgeChildren:permanentlyRemovedChildren fromRegistry:_shadowViewRegistry];
+
+  //XXX do song and dance for actual non-shadow nodes
+//
+//  if (isUIViewRegistry && _layoutAnimationGroup.deletingLayoutAnimation) {
+//    [self _removeChildren:(NSArray<UIView *> *)permanentlyRemovedChildren
+//            fromContainer:(UIView *)container
+//            withAnimation:_layoutAnimationGroup];
+//  } else {
+//    [self _removeChildren:permanentlyRemovedChildren fromContainer:container];
+//  }
+//
+//  [self _removeChildren:temporarilyRemovedChildren fromContainer:container];
+//  [self _purgeChildren:permanentlyRemovedChildren fromRegistry:registry];
+
+  // Figure out what to insert - merge temporary inserts and adds
+  NSMutableDictionary *destinationsToChildrenToAdd = [NSMutableDictionary dictionary];
+  for (NSInteger index = 0, length = temporarilyRemovedChildren.count; index < length; index++) {
+    destinationsToChildrenToAdd[moveToIndices[index]] = temporarilyRemovedChildren[index];
+  }
+
+  for (NSInteger index = 0, length = addAtIndices.count; index < length; index++) {
+    id<RCTComponent> view = _shadowViewRegistry[addChildReactTags[index]];
+    if (view) {
+      destinationsToChildrenToAdd[addAtIndices[index]] = view;
+    }
+  }
+
+  NSArray<NSNumber *> *sortedIndices =
+  [destinationsToChildrenToAdd.allKeys sortedArrayUsingSelector:@selector(compare:)];
+  for (NSNumber *reactIndex in sortedIndices) {
+    [container insertReactSubview:destinationsToChildrenToAdd[reactIndex]
+                          atIndex:reactIndex.integerValue];
+  }
+
+//  // Figure out what to insert - merge temporary inserts and adds
+//  NSMutableDictionary *destinationsToChildrenToAdd = [NSMutableDictionary dictionary];
+//  for (NSInteger index = 0, length = temporarilyRemovedChildren.count; index < length; index++) {
+//    destinationsToChildrenToAdd[moveToIndices[index]] = temporarilyRemovedChildren[index];
+//  }
+//
+//  for (NSInteger index = 0, length = addAtIndices.count; index < length; index++) {
+//    id<RCTComponent> view = registry[addChildReactTags[index]];
+//    if (view) {
+//      destinationsToChildrenToAdd[addAtIndices[index]] = view;
+//    }
+//  }
+//
+//  NSArray<NSNumber *> *sortedIndices =
+//  [destinationsToChildrenToAdd.allKeys sortedArrayUsingSelector:@selector(compare:)];
+//  for (NSNumber *reactIndex in sortedIndices) {
+//    [container insertReactSubview:destinationsToChildrenToAdd[reactIndex]
+//                          atIndex:reactIndex.integerValue];
+//  }
+}
+
+- (void)insertShadowSubview:(RCTShadowView *)child inContainer:(RCTShadowView *)container atIndex:(NSUInteger)index
+{
+  int indexInNativeChildren = parent.getNativeOffsetForChild(parent.getChildAt(index));
+  if (parent.isLayoutOnly()) {
+    NodeIndexPair result = walkUpUntilNonLayoutOnly(parent, indexInNativeChildren);
+    if (result == null) {
+      // If the parent hasn't been attached to its native parent yet, don't issue commands to the
+      // native hierarchy. We'll do that when the parent node actually gets attached somewhere.
+      return;
+    }
+    parent = result.node;
+    indexInNativeChildren = result.index;
+  }
+
+  if (!child.isLayoutOnly()) {
+    addNonLayoutNode(parent, child, indexInNativeChildren);
+  } else {
+    addLayoutOnlyNode(parent, child, indexInNativeChildren);
+  }
+}
+
+private NodeIndexPair walkUpUntilNonLayoutOnly(
+                                               ReactShadowNode node,
+                                               int indexInNativeChildren) {
+  while (node.isLayoutOnly()) {
+    ReactShadowNode parent = node.getParent();
+    if (parent == null) {
+      return null;
+    }
+
+    indexInNativeChildren = indexInNativeChildren + parent.getNativeOffsetForChild(node);
+    node = parent;
+  }
+
+  return new NodeIndexPair(node, indexInNativeChildren);
+}
+
+private void addNodeToNode(ReactShadowNode parent, ReactShadowNode child, int index) {
+
+}
+
+
+
 - (void)_manageChildren:(NSNumber *)containerTag
         moveFromIndices:(NSArray<NSNumber *> *)moveFromIndices
           moveToIndices:(NSArray<NSNumber *> *)moveToIndices
@@ -884,7 +1032,14 @@ RCT_EXPORT_METHOD(manageChildren:(nonnull NSNumber *)containerTag
         removeAtIndices:(NSArray<NSNumber *> *)removeAtIndices
                registry:(NSMutableDictionary<NSNumber *, id<RCTComponent>> *)registry
 {
+  BOOL isUIViewRegistry = ((id)registry == (id)_viewRegistry);
+
   id<RCTComponent> container = registry[containerTag];
+  if (!isUIViewRegistry) {
+    RCTShadowView *shadowView = (RCTShadowView *)container;
+    container = shadowView.layoutOnly ? shadowView.nativeSuperview : container;
+  }
+
   RCTAssert(moveFromIndices.count == moveToIndices.count, @"moveFromIndices had size %tu, moveToIndices had size %tu", moveFromIndices.count, moveToIndices.count);
   RCTAssert(addChildReactTags.count == addAtIndices.count, @"there should be at least one React child to add");
 
@@ -894,7 +1049,6 @@ RCT_EXPORT_METHOD(manageChildren:(nonnull NSNumber *)containerTag
   NSArray<id<RCTComponent>> *temporarilyRemovedChildren =
     [self _childrenToRemoveFromContainer:container atIndices:moveFromIndices];
 
-  BOOL isUIViewRegistry = ((id)registry == (id)_viewRegistry);
   if (isUIViewRegistry && _layoutAnimationGroup.deletingLayoutAnimation) {
     [self _removeChildren:(NSArray<UIView *> *)permanentlyRemovedChildren
             fromContainer:(UIView *)container
@@ -927,6 +1081,78 @@ RCT_EXPORT_METHOD(manageChildren:(nonnull NSNumber *)containerTag
   }
 }
 
+- (NSSet *)layoutProps
+{
+  static NSSet *layoutProps;
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    layoutProps = [NSMutableSet setWithObjects:
+       @"alignItems",
+       @"alignSelf",
+       @"alignContent",
+       @"overflow",
+       @"display",
+       @"bottom",
+       @"collapsable",
+       @"flex",
+       @"flexGrow",
+       @"flexShrink",
+       @"flexBasis",
+       @"flexDirection",
+       @"flexWrap",
+       @"height",
+       @"justifyContent",
+       @"left",
+       @"margin",
+       @"marginVertical",
+       @"marginHorizontal",
+       @"marginLeft",
+       @"marginRight",
+       @"marginTop",
+       @"marginBottom",
+       @"padding",
+       @"paddingVertical",
+       @"paddingHorizontal",
+       @"paddingLeft",
+       @"paddingRight",
+       @"paddingTop",
+       @"paddingBottom",
+       @"position",
+       @"right",
+       @"top",
+       @"width",
+       @"minWidth",
+       @"maxWidth",
+       @"minHeight",
+       @"maxHeight",
+       @"aspectRatio",
+       nil
+     ];
+  });
+  return layoutProps;
+}
+
+- (BOOL)isLayoutOnlyAndCollapsable:(NSDictionary *)props
+{
+  if (!props) {
+    return YES;
+  }
+
+  NSNumber *collapsable = [props objectForKey:@"collapsable"];
+  if (collapsable && ![collapsable boolValue]) {
+    return NO;
+  }
+
+  NSSet *layoutProps = self.layoutProps;
+  for (NSString *key in props) {
+    if (![layoutProps containsObject:key]) {
+      return NO;
+    }
+  }
+
+  return YES;
+}
+
 RCT_EXPORT_METHOD(createView:(nonnull NSNumber *)reactTag
                   viewName:(NSString *)viewName
                   rootTag:(nonnull NSNumber *)rootTag
@@ -946,6 +1172,13 @@ RCT_EXPORT_METHOD(createView:(nonnull NSNumber *)reactTag
     RCTAssert([rootView isKindOfClass:[RCTRootShadowView class]],
       @"Given `rootTag` (%@) does not correspond to a valid root shadow view instance.", rootTag);
     shadowView.rootView = (RCTRootShadowView *)rootView;
+  }
+
+  static BOOL enableLayoutOnly = NO;
+  BOOL isLayoutOnly = [viewName isEqualToString:@"RCTView"] && [self isLayoutOnlyAndCollapsable:props];
+  if (enableLayoutOnly && isLayoutOnly) {
+    shadowView.layoutOnly = YES;
+    return;
   }
 
   // Shadow view is the source of truth for background color this is a little
@@ -984,6 +1217,10 @@ RCT_EXPORT_METHOD(updateView:(nonnull NSNumber *)reactTag
                   props:(NSDictionary *)props)
 {
   RCTShadowView *shadowView = _shadowViewRegistry[reactTag];
+  if (shadowView.layoutOnly && ![self isLayoutOnlyAndCollapsable:props]) {
+    RCTAssert(false, @"Switching to non-layout node not yet implemented.");
+  }
+
   RCTComponentData *componentData = _componentDataByName[shadowView.viewName ?: viewName];
   [componentData setProps:props forShadowView:shadowView];
 
@@ -998,6 +1235,12 @@ RCT_EXPORT_METHOD(updateView:(nonnull NSNumber *)reactTag
                                     props:(NSDictionary *)props
 {
   RCTAssertMainQueue();
+
+  RCTShadowView *shadowView = _shadowViewRegistry[reactTag];
+  if (shadowView.layoutOnly && ![self isLayoutOnlyAndCollapsable:props]) {
+    RCTAssert(false, @"Switching to non-layout node not yet implemented.");
+  }
+
   RCTComponentData *componentData = _componentDataByName[viewName];
   UIView *view = _viewRegistry[reactTag];
   [componentData setProps:props forView:view];
