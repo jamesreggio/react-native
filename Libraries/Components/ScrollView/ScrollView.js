@@ -314,6 +314,11 @@ const ScrollView = createReactClass({
      */
     scrollsToTop: PropTypes.bool,
     /**
+     * Fires when the scroll view scrolls to top after the status bar has been tapped.
+     * @platform ios
+     */
+    onScrollToTop: PropTypes.func,
+    /**
      * When true, shows a horizontal scroll indicator.
      * The default value is true.
      */
