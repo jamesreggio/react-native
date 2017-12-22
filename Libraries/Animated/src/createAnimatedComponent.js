@@ -21,7 +21,7 @@ function createAnimatedComponent(Component: any): any {
   class AnimatedComponent extends React.Component<Object> {
     _component: any;
     _prevComponent: any;
-    _propsAnimated: AnimatedProps;
+    _animatedProps: AnimatedProps;
     _eventDetachers: Array<Function> = [];
     _setComponentRef: Function;
 
@@ -33,8 +33,7 @@ function createAnimatedComponent(Component: any): any {
     }
 
     componentWillUnmount() {
-      this._propsAnimated && this._propsAnimated.__detach();
-      this._detachNativeEvents();
+      this._animatedProps.__detach();
     }
 
     setNativeProps(props) {
@@ -46,34 +45,10 @@ function createAnimatedComponent(Component: any): any {
     }
 
     componentDidMount() {
-      this._propsAnimated.setNativeView(this._component);
-      this._attachNativeEvents();
-    }
-
-    _attachNativeEvents() {
-      // Make sure to get the scrollable node for components that implement
-      // `ScrollResponder.Mixin`.
-      const scrollableNode = this._component.getScrollableNode
-        ? this._component.getScrollableNode()
-        : this._component;
-
-      for (const key in this.props) {
-        const prop = this.props[key];
-        if (prop instanceof AnimatedEvent && prop.__isNative) {
-          prop.__attach(scrollableNode, key);
-          this._eventDetachers.push(() => prop.__detach(scrollableNode, key));
-        }
-      }
-    }
-
-    _detachNativeEvents() {
-      this._eventDetachers.forEach(remove => remove());
-      this._eventDetachers = [];
+      this._animatedProps.updateView(this._component);
     }
 
     _attachProps(nextProps) {
-      const oldPropsAnimated = this._propsAnimated;
-
       // The system is best designed when setNativeProps is implemented. It is
       // able to avoid re-rendering and directly set the attributes that
       // changed. However, setNativeProps can only be implemented on leaf
@@ -81,66 +56,50 @@ function createAnimatedComponent(Component: any): any {
       // need to re-render it. In this case, we have a fallback that uses
       // forceUpdate.
       const callback = () => {
-        if (
-          !AnimatedComponent.__skipSetNativeProps_FOR_TESTS_ONLY &&
-          this._component.setNativeProps
-        ) {
-          if (!this._propsAnimated.__isNative) {
-            this._component.setNativeProps(
-              this._propsAnimated.__getAnimatedValue(),
-            );
+        if (this._component.setNativeProps) {
+          if (!this._animatedProps.__isNative) {
+            this._component.setNativeProps(this._animatedProps.__getAnimatedValue());
           } else {
-            throw new Error(
-              'Attempting to run JS driven animation on animated ' +
-                'node that has been moved to "native" earlier by starting an ' +
-                'animation with `useNativeDriver: true`',
-            );
+            throw new Error([
+              'Attempting to run JS driven animation on animated node that',
+              'has been moved to "native" earlier by starting an animation',
+              'with `useNativeDriver: true`'
+            ].join(' '));
           }
         } else {
           this.forceUpdate();
         }
       };
 
-      this._propsAnimated = new AnimatedProps(nextProps, callback);
-
-      // When you call detach, it removes the element from the parent list
-      // of children. If it goes to 0, then the parent also detaches itself
-      // and so on.
-      // An optimization is to attach the new elements and THEN detach the old
-      // ones instead of detaching and THEN attaching.
-      // This way the intermediate state isn't to go to 0 and trigger
-      // this expensive recursive detaching to then re-attach everything on
-      // the very next operation.
-      oldPropsAnimated && oldPropsAnimated.__detach();
+      this._animatedProps = new AnimatedProps(this.props, callback);
     }
 
-    componentWillReceiveProps(newProps) {
-      this._attachProps(newProps);
+    componentWillReceiveProps(nextProps) {
+      this._animatedProps.updateProps(nextProps);
     }
 
     componentDidUpdate(prevProps) {
       if (this._component !== this._prevComponent) {
-        this._propsAnimated.setNativeView(this._component);
-      }
-      if (this._component !== this._prevComponent || prevProps !== this.props) {
-        this._detachNativeEvents();
-        this._attachNativeEvents();
+        this._animatedProps.updateView(this._component);
       }
     }
 
     render() {
-      const props = this._propsAnimated.__getValue();
+      const props = this._animatedProps.__getValue();
+
+      // The native driver updates views directly through the UI thread so we
+      // have to make sure the view doesn't get optimized away because it
+      // cannot go through the NativeViewHierachyManager since it operates on
+      // the shadow thread.
+      const collapsible = (
+        this._animatedProps.__isNative ? false : props.collapsable
+      );
+
       return (
         <Component
           {...props}
           ref={this._setComponentRef}
-          // The native driver updates views directly through the UI thread so we
-          // have to make sure the view doesn't get optimized away because it cannot
-          // go through the NativeViewHierachyManager since it operates on the shadow
-          // thread.
-          collapsable={
-            this._propsAnimated.__isNative ? false : props.collapsable
-          }
+          collapsable={collapsible}
         />
       );
     }
