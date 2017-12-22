@@ -456,8 +456,12 @@ const ScrollView = createReactClass({
     this._updateAnimatedNodeAttachment();
   },
 
-  componentDidUpdate: function() {
-    this._updateAnimatedNodeAttachment();
+  componentDidUpdate: function({ stickyHeaderIndices }) {
+    const hasLastIndices = stickyHeaderIndices && stickyHeaderIndices.length;
+    const hasNextIndices = this.props.stickyHeaderIndices && this.props.stickyHeaderIndices.length;
+    if (hasLastIndices !== hasNextIndices) {
+      this._updateAnimatedNodeAttachment();
+    }
   },
 
   componentWillUnmount: function() {

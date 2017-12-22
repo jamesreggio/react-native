@@ -35,15 +35,26 @@ class ScrollViewStickyHeader extends React.Component<Props, {
       layoutY: 0,
       layoutHeight: 0,
       nextHeaderLayoutY: props.nextHeaderLayoutY,
+      translateY: new Animated.Value(0),
     };
   }
 
   setNextHeaderY(y: number) {
-    this.setState({ nextHeaderLayoutY: y });
+    this._updateTranslateY({
+      ...this.state,
+      nextHeaderLayoutY: y,
+    });
+  }
+
+  componentWillReceiveProps({ scrollAnimatedValue }) {
+    if (scrollAnimatedValue !== this.props.scrollAnimatedValue) {
+      this._updateTranslateY(this.state);
+    }
   }
 
   _onLayout = (event) => {
-    this.setState({
+    this._updateTranslateY({
+      ...this.state,
       measured: true,
       layoutY: event.nativeEvent.layout.y,
       layoutHeight: event.nativeEvent.layout.height,
@@ -56,8 +67,8 @@ class ScrollViewStickyHeader extends React.Component<Props, {
     }
   };
 
-  render() {
-    const {measured, layoutHeight, layoutY, nextHeaderLayoutY} = this.state;
+  _updateTranslateY = (state) => {
+    const {measured, layoutHeight, layoutY, nextHeaderLayoutY} = state;
     const inputRange: Array<number> = [-1, 0];
     const outputRange: Array<number> = [0, 0];
 
@@ -90,7 +101,13 @@ class ScrollViewStickyHeader extends React.Component<Props, {
       inputRange,
       outputRange,
     });
+
+    this.setState({...state, translateY});
+  };
+
+  render() {
     const child = React.Children.only(this.props.children);
+    const { translateY } = this.state;
 
     return (
       <Animated.View
