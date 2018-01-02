@@ -98,6 +98,7 @@ static const NSTimeInterval kIdleCallbackFrameDeadline = 0.001;
   NSMutableDictionary<NSNumber *, _RCTTimer *> *_timers;
   NSTimer *_sleepTimer;
   BOOL _sendIdleEvents;
+  BOOL _inBackground;
 }
 
 @synthesize bridge = _bridge;
@@ -112,12 +113,13 @@ RCT_EXPORT_MODULE()
 
   _paused = YES;
   _timers = [NSMutableDictionary new];
+  _inBackground = NO;
 
   for (NSString *name in @[UIApplicationWillResignActiveNotification,
                            UIApplicationDidEnterBackgroundNotification,
                            UIApplicationWillTerminateNotification]) {
     [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(stopTimers)
+                                             selector:@selector(appDidMoveToBackground)
                                                  name:name
                                                object:nil];
   }
@@ -125,7 +127,7 @@ RCT_EXPORT_MODULE()
   for (NSString *name in @[UIApplicationDidBecomeActiveNotification,
                            UIApplicationWillEnterForegroundNotification]) {
     [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(startTimers)
+                                             selector:@selector(appDidMoveToForeground)
                                                  name:name
                                                object:nil];
   }
@@ -150,8 +152,24 @@ RCT_EXPORT_MODULE()
   _bridge = nil;
 }
 
+- (void)appDidMoveToBackground
+{
+  [self stopTimers];
+  _inBackground = YES;
+}
+
+- (void)appDidMoveToForeground
+{
+  _inBackground = NO;
+  [self startTimers];
+}
+
 - (void)stopTimers
 {
+  if (_inBackground) {
+    return;
+  }
+
   if (!_paused) {
     _paused = YES;
     if (_pauseCallback) {
@@ -162,7 +180,7 @@ RCT_EXPORT_MODULE()
 
 - (void)startTimers
 {
-  if (!_bridge || ![self hasPendingTimers]) {
+  if (!_bridge || _inBackground || ![self hasPendingTimers]) {
     return;
   }
 
@@ -227,7 +245,11 @@ RCT_EXPORT_MODULE()
   // Switch to a paused state only if we didn't call any timer this frame, so if
   // in response to this timer another timer is scheduled, we don't pause and unpause
   // the displaylink frivolously.
-  if (!_sendIdleEvents && timersToCall.count == 0) {
+  if (_inBackground) {
+    if (_timers.count) {
+      [self scheduleSleepTimer:nextScheduledTarget];
+    }
+  } else if (!_sendIdleEvents && timersToCall.count == 0) {
     // No need to call the pauseCallback as RCTDisplayLink will ask us about our paused
     // status immediately after completing this call
     if (_timers.count == 0) {
@@ -297,7 +319,10 @@ RCT_EXPORT_METHOD(createTimer:(nonnull NSNumber *)callbackID
                                                 targetTime:targetTime
                                                    repeats:repeats];
   _timers[callbackID] = timer;
-  if (_paused) {
+
+  if (_inBackground) {
+    [self scheduleSleepTimer:timer.target];
+  } else if (_paused) {
     if ([timer.target timeIntervalSinceNow] > kMinimumSleepInterval) {
       [self scheduleSleepTimer:timer.target];
     } else {
