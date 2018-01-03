@@ -14,8 +14,63 @@
 
 const {AnimatedEvent} = require('./AnimatedEvent');
 const AnimatedProps = require('./nodes/AnimatedProps');
+const AnimatedNode = require('./nodes/AnimatedNode');
 const React = require('React');
 const ViewStylePropTypes = require('ViewStylePropTypes');
+const deepDiffer = require('deepDiffer');
+
+function animatedValueKeys(object) {
+  return Object.keys(object).filter(key => (
+    key === 'style' ||
+    object[key] instanceof AnimatedNode
+  ));
+}
+
+function animatedEventKeys(object) {
+  return Object.keys(object).filter(key => (
+    object[key] instanceof AnimatedEvent
+  ));
+}
+
+function animatedValueDiff(a, b) {
+  return deepDiffer(a, b);
+}
+
+function animatedEventDiff(a, b) {
+  let _attachedEvent;
+  if (a instanceof AnimatedEvent) {
+    ({_attachedEvent, ...a} = a);
+  }
+  if (b instanceof AnimatedEvent) {
+    ({_attachedEvent, ...b} = b);
+  }
+  return deepDiffer(a, b);
+}
+
+function animatedPropsChanged(lastProps, nextProps, getKeys, diff) {
+  const lastKeys = getKeys(lastProps);
+  const nextKeys = getKeys(nextProps);
+
+  if (!deepDiffer(lastKeys, nextKeys)) {
+    for (const key of lastKeys) {
+      if (diff(lastProps[key], nextProps[key])) {
+        return key;
+      }
+    }
+
+    return false;
+  }
+
+  return true;
+}
+
+function animatedValuePropsChanged(lastProps, nextProps) {
+  return animatedPropsChanged(lastProps, nextProps, animatedValueKeys, animatedValueDiff);
+}
+
+function animatedEventPropsChanged(lastProps, nextProps) {
+  return animatedPropsChanged(lastProps, nextProps, animatedEventKeys, animatedEventDiff);
+}
 
 function createAnimatedComponent(Component: any): any {
   class AnimatedComponent extends React.Component<Object> {
@@ -52,8 +107,10 @@ function createAnimatedComponent(Component: any): any {
         this._animatedPropsCallback();
       }
 
+      this._attachProps(this.props, true);
       this._propsAnimated.setNativeView(this._component);
       this._attachNativeEvents();
+      this.forceUpdate();
     }
 
     _attachNativeEvents() {
@@ -108,23 +165,43 @@ function createAnimatedComponent(Component: any): any {
       }
     };
 
-    _attachProps(nextProps) {
-      const oldPropsAnimated = this._propsAnimated;
+    _attachProps(nextProps, force = !this._propsAnimated) {
+      const changed = animatedValuePropsChanged(this.props, nextProps);
 
-      this._propsAnimated = new AnimatedProps(
-        nextProps,
-        this._animatedPropsCallback,
-      );
+      if (force || changed) {
+        if (changed && window.logAnimatedPerf) {
+          console.log(
+            '[animated]',
+            'reattaching values for prop',
+            changed,
+            this.props[changed],
+            nextProps[changed],
+          );
+        }
 
-      // When you call detach, it removes the element from the parent list
-      // of children. If it goes to 0, then the parent also detaches itself
-      // and so on.
-      // An optimization is to attach the new elements and THEN detach the old
-      // ones instead of detaching and THEN attaching.
-      // This way the intermediate state isn't to go to 0 and trigger
-      // this expensive recursive detaching to then re-attach everything on
-      // the very next operation.
-      oldPropsAnimated && oldPropsAnimated.__detach();
+        const oldPropsAnimated = this._propsAnimated;
+
+        this._propsAnimated = new AnimatedProps(
+          nextProps,
+          this._animatedPropsCallback,
+        );
+
+        // When you call detach, it removes the element from the parent list
+        // of children. If it goes to 0, then the parent also detaches itself
+        // and so on.
+        // An optimization is to attach the new elements and THEN detach the old
+        // ones instead of detaching and THEN attaching.
+        // This way the intermediate state isn't to go to 0 and trigger
+        // this expensive recursive detaching to then re-attach everything on
+        // the very next operation.
+        oldPropsAnimated && oldPropsAnimated.__detach();
+      } else {
+        if (window.logAnimatedPerf) {
+          console.log('[animated]', 'reusing value props');
+        }
+
+        this._propsAnimated.updateProps(nextProps);
+      }
     }
 
     componentWillReceiveProps(newProps) {
@@ -132,10 +209,22 @@ function createAnimatedComponent(Component: any): any {
     }
 
     componentDidUpdate(prevProps) {
-      if (this._component !== this._prevComponent) {
+      const componentChanged = (this._component !== this._prevComponent);
+      const propsChanged = animatedEventPropsChanged(prevProps, this.props);
+
+      if (componentChanged) {
         this._propsAnimated.setNativeView(this._component);
       }
-      if (this._component !== this._prevComponent || prevProps !== this.props) {
+
+      if (componentChanged || propsChanged) {
+        if (propsChanged && window.logAnimatedPerf) {
+          console.log(
+            '[animated]',
+            'reattaching events for prop',
+            propsChanged,
+          );
+        }
+
         this._detachNativeEvents();
         this._attachNativeEvents();
       }

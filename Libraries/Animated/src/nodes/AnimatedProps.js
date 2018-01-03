@@ -38,6 +38,11 @@ class AnimatedProps extends AnimatedNode {
     this.__attach();
   }
 
+  updateProps(nextProps): void {
+    const {style} = this._props;
+    this._props = {...nextProps, style};
+  }
+
   __getValue(): Object {
     const props = {};
     for (const key in this._props) {
