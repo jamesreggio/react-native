@@ -417,6 +417,10 @@ class VirtualizedList extends React.PureComponent<Props, State> {
   }
 
   getScrollableNode() {
+    if (this._isNestedWithSameOrientation()) {
+      return null;
+    }
+
     if (this._scrollRef && this._scrollRef.getScrollableNode) {
       return this._scrollRef.getScrollableNode();
     } else {
