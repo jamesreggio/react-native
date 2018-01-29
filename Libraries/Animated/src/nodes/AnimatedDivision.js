@@ -27,6 +27,10 @@ class AnimatedDivision extends AnimatedWithChildren {
     super();
     this._a = typeof a === 'number' ? new AnimatedValue(a) : a;
     this._b = typeof b === 'number' ? new AnimatedValue(b) : b;
+
+    if (this._a.__isNative || this._b.__isNative) {
+      this.__makeNative();
+    }
   }
 
   __makeNative() {

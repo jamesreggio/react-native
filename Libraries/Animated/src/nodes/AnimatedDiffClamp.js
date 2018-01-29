@@ -32,6 +32,10 @@ class AnimatedDiffClamp extends AnimatedWithChildren {
     this._min = min;
     this._max = max;
     this._value = this._lastValue = this._a.__getValue();
+
+    if (this._a.__isNative) {
+      this.__makeNative();
+    }
   }
 
   __makeNative() {

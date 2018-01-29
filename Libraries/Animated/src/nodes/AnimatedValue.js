@@ -80,12 +80,16 @@ class AnimatedValue extends AnimatedWithChildren {
   _listeners: {[key: string]: ValueListenerCallback};
   __nativeAnimatedValueListener: ?any;
 
-  constructor(value: number) {
+  constructor(value: number, options: ?any) {
     super();
     this._startingValue = this._value = value;
     this._offset = 0;
     this._animation = null;
     this._listeners = {};
+
+    if (options && options.useNativeDriver) {
+      this.__makeNative();
+    }
   }
 
   __detach() {

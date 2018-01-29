@@ -26,6 +26,10 @@ class AnimatedModulo extends AnimatedWithChildren {
     super();
     this._a = a;
     this._modulus = modulus;
+
+    if (this._a.__isNative) {
+      this.__makeNative();
+    }
   }
 
   __makeNative() {

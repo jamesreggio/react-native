@@ -320,6 +320,10 @@ class AnimatedInterpolation extends AnimatedWithChildren {
     this._parent = parent;
     this._config = config;
     this._interpolation = createInterpolation(config);
+
+    if (this._parent.__isNative) {
+      this.__makeNative();
+    }
   }
 
   __makeNative() {
