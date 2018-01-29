@@ -79,6 +79,7 @@ class TimingAnimation extends Animation {
       frames,
       toValue: this._toValue,
       iterations: this.__iterations,
+      delay: this._delay,
     };
   }
 
@@ -94,24 +95,26 @@ class TimingAnimation extends Animation {
     this._onUpdate = onUpdate;
     this.__onEnd = onEnd;
 
+    if (this._useNativeDriver) {
+      this.__startNativeAnimation(animatedValue);
+      return;
+    }
+
     const start = () => {
       // Animations that sometimes have 0 duration and sometimes do not
       // still need to use the native driver when duration is 0 so as to
       // not cause intermixed JS and native animations.
-      if (this._duration === 0 && !this._useNativeDriver) {
+      if (this._duration === 0) {
         this._onUpdate(this._toValue);
         this.__debouncedOnEnd({finished: true});
       } else {
         this._startTime = Date.now();
-        if (this._useNativeDriver) {
-          this.__startNativeAnimation(animatedValue);
-        } else {
-          this._animationFrame = requestAnimationFrame(
-            this.onUpdate.bind(this),
-          );
-        }
+        this._animationFrame = requestAnimationFrame(
+          this.onUpdate.bind(this),
+        );
       }
     };
+
     if (this._delay) {
       this._timeout = setTimeout(start, this._delay);
     } else {

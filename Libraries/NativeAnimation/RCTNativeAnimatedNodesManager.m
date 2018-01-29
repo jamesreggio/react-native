@@ -249,9 +249,27 @@
     return;
   }
 
-  [_activeAnimations addObject:animationDriver];
-  [animationDriver startAnimation];
-  [self startAnimationLoopIfNeeded];
+  __weak typeof(self) weakSelf = self;
+  void(^startAnimation)() = ^() {
+    __strong __typeof(weakSelf) strongSelf = weakSelf;
+    if (strongSelf) {
+      [strongSelf->_activeAnimations addObject:animationDriver];
+      [animationDriver startAnimation];
+      [strongSelf startAnimationLoopIfNeeded];
+    }
+  };
+
+  NSInteger delay = config[@"delay"] ? ((NSNumber *)config[@"delay"]).longValue : 0;
+  if (delay > 0) {
+    dispatch_after(
+      dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_MSEC)),
+      dispatch_get_main_queue(),
+      startAnimation
+    );
+  } else {
+    RCTAssertMainQueue();
+    startAnimation();
+  }
 }
 
 - (void)stopAnimation:(nonnull NSNumber *)animationId

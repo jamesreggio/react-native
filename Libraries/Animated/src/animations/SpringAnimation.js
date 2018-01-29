@@ -163,6 +163,7 @@ class SpringAnimation extends Animation {
       initialVelocity: withDefault(this._initialVelocity, this._lastVelocity),
       toValue: this._toValue,
       iterations: this.__iterations,
+      delay: this._delay,
     };
   }
 
@@ -191,13 +192,12 @@ class SpringAnimation extends Animation {
       this._lastTime = internalState.lastTime;
     }
 
-    const start = () => {
-      if (this._useNativeDriver) {
-        this.__startNativeAnimation(animatedValue);
-      } else {
-        this.onUpdate();
-      }
-    };
+    if (this._useNativeDriver) {
+      this.__startNativeAnimation(animatedValue);
+      return;
+    }
+
+    const start = () => this.onUpdate();
 
     //  If this._delay is more than 0, we start after the timeout.
     if (this._delay) {
