@@ -18,7 +18,6 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.view.MotionEvent;
 import android.view.View;
-import android.widget.HorizontalScrollView;
 import com.facebook.infer.annotation.Assertions;
 import com.facebook.react.uimanager.MeasureSpecAssertions;
 import com.facebook.react.uimanager.ReactClippingViewGroup;
@@ -30,7 +29,7 @@ import javax.annotation.Nullable;
 /**
  * Similar to {@link ReactScrollView} but only supports horizontal scrolling.
  */
-public class ReactHorizontalScrollView extends HorizontalScrollView implements
+public class ReactHorizontalScrollView extends NestedHorizontalScrollView implements
     ReactClippingViewGroup {
 
   private final OnScrollDispatchHelper mOnScrollDispatchHelper = new OnScrollDispatchHelper();
@@ -164,6 +163,62 @@ public class ReactHorizontalScrollView extends HorizontalScrollView implements
     }
 
     return super.onTouchEvent(ev);
+  }
+
+
+  @Override
+  public boolean onStartNestedScroll(View child, View target, int nestedScrollAxes) {
+    return (
+      super.onStartNestedScroll(child, target, nestedScrollAxes)
+        && mScrollEnabled
+    );
+  }
+
+  @Override
+  public void onStopNestedScroll(View target) {
+    super.onStopNestedScroll(target);
+    if (mDragging) {
+      VelocityHelper velocityHelper = ((ReactHorizontalScrollView)target).mVelocityHelper;
+      ReactScrollViewHelper.emitScrollEndDragEvent(
+        this,
+        velocityHelper.getXVelocity(),
+        velocityHelper.getYVelocity());
+      mDragging = false;
+      handlePostTouchScrolling();
+    }
+  }
+
+  @Override
+  public void onNestedPreScroll(View child, int dx, int dy, int[] consumed) {
+    Rect childBounds = new Rect();
+    child.getDrawingRect(childBounds);
+    offsetDescendantRectToMyCoords(child, childBounds);
+
+    boolean parentAtRight = !canScrollHorizontally(1);
+    boolean childAtLeft = (childBounds.left == getScrollX());
+
+    boolean childConsumes = (
+      (parentAtRight || childAtLeft) && (dx > 0 || child.getScrollX() > 0)
+    );
+
+    if (childConsumes) {
+      if (mDragging) {
+        VelocityHelper velocityHelper = ((ReactHorizontalScrollView)child).mVelocityHelper;
+        velocityHelper.calculateVelocity();
+        ReactScrollViewHelper.emitScrollEndDragEvent(
+          this,
+          velocityHelper.getXVelocity(),
+          velocityHelper.getYVelocity());
+        mDragging = false;
+      }
+    } else {
+      if (!mDragging) {
+        ReactScrollViewHelper.emitScrollBeginDragEvent(this);
+        mDragging = true;
+      }
+      scrollBy(dx, 0);
+      consumed[0] = dx;
+    }
   }
 
   @Override

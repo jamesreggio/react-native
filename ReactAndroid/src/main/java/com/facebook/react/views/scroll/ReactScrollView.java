@@ -14,6 +14,8 @@ import android.graphics.Color;
 import android.graphics.Rect;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+import android.support.v4.widget.NestedScrollView;
+import android.support.v4.widget.ScrollerCompat;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
@@ -38,13 +40,13 @@ import javax.annotation.Nullable;
  * <p>ReactScrollView only supports vertical scrolling. For horizontal scrolling,
  * use {@link ReactHorizontalScrollView}.
  */
-public class ReactScrollView extends ScrollView implements ReactClippingViewGroup, ViewGroup.OnHierarchyChangeListener, View.OnLayoutChangeListener {
+public class ReactScrollView extends NestedScrollView implements ReactClippingViewGroup, ViewGroup.OnHierarchyChangeListener, View.OnLayoutChangeListener {
 
   private static Field sScrollerField;
   private static boolean sTriedToGetScrollerField = false;
 
   private final OnScrollDispatchHelper mOnScrollDispatchHelper = new OnScrollDispatchHelper();
-  private final OverScroller mScroller;
+  private final ScrollerCompat mScroller;
   private final VelocityHelper mVelocityHelper = new VelocityHelper();
 
   private @Nullable Rect mClippingRect;
@@ -73,7 +75,7 @@ public class ReactScrollView extends ScrollView implements ReactClippingViewGrou
     if (!sTriedToGetScrollerField) {
       sTriedToGetScrollerField = true;
       try {
-        sScrollerField = ScrollView.class.getDeclaredField("mScroller");
+        sScrollerField = NestedScrollView.class.getDeclaredField("mScroller");
         sScrollerField.setAccessible(true);
       } catch (NoSuchFieldException e) {
         Log.w(
@@ -86,8 +88,8 @@ public class ReactScrollView extends ScrollView implements ReactClippingViewGrou
     if (sScrollerField != null) {
       try {
         Object scroller = sScrollerField.get(this);
-        if (scroller instanceof OverScroller) {
-          mScroller = (OverScroller) scroller;
+        if (scroller instanceof ScrollerCompat) {
+          mScroller = (ScrollerCompat) scroller;
         } else {
           Log.w(
             ReactConstants.TAG,
@@ -146,7 +148,7 @@ public class ReactScrollView extends ScrollView implements ReactClippingViewGrou
   }
 
   @Override
-  protected void onAttachedToWindow() {
+  public void onAttachedToWindow() {
     super.onAttachedToWindow();
     if (mRemoveClippedSubviews) {
       updateClippingRect();
@@ -208,6 +210,81 @@ public class ReactScrollView extends ScrollView implements ReactClippingViewGrou
     }
 
     return super.onTouchEvent(ev);
+  }
+
+  @Override
+  public boolean onStartNestedScroll(View child, View target, int nestedScrollAxes) {
+    return (
+      super.onStartNestedScroll(child, target, nestedScrollAxes)
+      && mScrollEnabled
+    );
+  }
+
+  @Override
+  public void onStopNestedScroll(View target) {
+    super.onStopNestedScroll(target);
+    if (mDragging) {
+      VelocityHelper velocityHelper = ((ReactScrollView)target).mVelocityHelper;
+      ReactScrollViewHelper.emitScrollEndDragEvent(
+        this,
+        velocityHelper.getXVelocity(),
+        velocityHelper.getYVelocity());
+      mDragging = false;
+    }
+  }
+
+  @Override
+  public void onNestedPreScroll(View child, int dx, int dy, int[] consumed) {
+    Rect childBounds = new Rect();
+    child.getDrawingRect(childBounds);
+    offsetDescendantRectToMyCoords(child, childBounds);
+
+    boolean parentAtBottom = !canScrollVertically(1);
+    boolean childAtTop = (childBounds.top == getScrollY());
+
+    boolean childConsumes = (
+      (parentAtBottom || childAtTop) && (dy > 0 || child.getScrollY() > 0)
+    );
+
+    if (childConsumes) {
+      if (mDragging) {
+        VelocityHelper velocityHelper = ((ReactScrollView)child).mVelocityHelper;
+        velocityHelper.calculateVelocity();
+        ReactScrollViewHelper.emitScrollEndDragEvent(
+          this,
+          velocityHelper.getXVelocity(),
+          velocityHelper.getYVelocity());
+        mDragging = false;
+      }
+    } else {
+      if (!mDragging) {
+        ReactScrollViewHelper.emitScrollBeginDragEvent(this);
+        mDragging = true;
+      }
+      scrollBy(0, dy);
+      consumed[1] = dy;
+    }
+  }
+
+  @Override
+  public void computeScroll() {
+    super.computeScroll();
+
+    // Smooth scrolling is totally broken in NestedScrollView 26-27.
+    // It will occasionally jump to the top because of the use of
+    // `mLastScrollerY = 0` in the else arm of computeScroll(),
+    // and there's no clear workaround.
+    //
+    // In NestedScrollView 25, there's a bug where the scroller's interpolation
+    // may return the same Y offset if invoked too quickly, which will cause the
+    // NestedScrollView not to invalidate itself, which will lead to further
+    // frames being dropped. This premature animation termination issue has been
+    // resolved piecemeal (and in slightly different fashions) in ScrollView
+    // and NestedScrollView, and the fix amounts to just continuing to
+    // invalidate until the scroller is finished... which we do right here.
+    if (mScroller != null && !mScroller.isFinished()) {
+      postInvalidateOnAnimation();
+    }
   }
 
   @Override

@@ -148,6 +148,17 @@ public class ReactScrollViewManager
       scrollView.scrollTo(data.mDestX, data.mDestY);
     }
   }
+
+  @Override
+  public void beginNestedScrolling(ReactScrollView scrollView) {
+    scrollView.setNestedScrollingEnabled(true);
+  }
+
+  @Override
+  public void endNestedScrolling(ReactScrollView scrollView) {
+    scrollView.setNestedScrollingEnabled(false);
+  }
+
   @ReactPropGroup(names = {
       ViewProps.BORDER_RADIUS,
       ViewProps.BORDER_TOP_LEFT_RADIUS,

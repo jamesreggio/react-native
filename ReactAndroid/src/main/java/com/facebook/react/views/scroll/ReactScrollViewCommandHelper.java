@@ -25,11 +25,15 @@ public class ReactScrollViewCommandHelper {
   public static final int COMMAND_SCROLL_TO = 1;
   public static final int COMMAND_SCROLL_TO_END = 2;
   public static final int COMMAND_FLASH_SCROLL_INDICATORS = 3;
+  public static final int COMMAND_BEGIN_NESTED_SCROLLING = 10;
+  public static final int COMMAND_END_NESTED_SCROLLING = 11;
 
   public interface ScrollCommandHandler<T> {
     void scrollTo(T scrollView, ScrollToCommandData data);
     void scrollToEnd(T scrollView, ScrollToEndCommandData data);
     void flashScrollIndicators(T scrollView);
+    void beginNestedScrolling(T scrollView);
+    void endNestedScrolling(T scrollView);
   }
 
   public static class ScrollToCommandData {
@@ -60,7 +64,12 @@ public class ReactScrollViewCommandHelper {
         "scrollToEnd",
         COMMAND_SCROLL_TO_END,
         "flashScrollIndicators",
-        COMMAND_FLASH_SCROLL_INDICATORS);
+        COMMAND_FLASH_SCROLL_INDICATORS,
+        "beginNestedScrolling",
+        COMMAND_BEGIN_NESTED_SCROLLING,
+        "endNestedScrolling",
+        COMMAND_END_NESTED_SCROLLING
+      );
   }
 
   public static <T> void receiveCommand(
@@ -86,6 +95,12 @@ public class ReactScrollViewCommandHelper {
       }
       case COMMAND_FLASH_SCROLL_INDICATORS:
         viewManager.flashScrollIndicators(scrollView);
+        return;
+      case COMMAND_BEGIN_NESTED_SCROLLING:
+        viewManager.beginNestedScrolling(scrollView);
+        return;
+      case COMMAND_END_NESTED_SCROLLING:
+        viewManager.endNestedScrolling(scrollView);
         return;
 
       default:

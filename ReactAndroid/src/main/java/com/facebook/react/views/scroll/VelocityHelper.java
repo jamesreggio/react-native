@@ -53,6 +53,21 @@ public class VelocityHelper {
     }
   }
 
+  /**
+   * Call from a NestedScrollView at the end of a nested drag.
+   * Because a MotionEvent is unavailable in these events, we just use the
+   * velocity of the prior events collected via calculateVelocity().
+   */
+  public void calculateVelocity() {
+    if (mVelocityTracker == null) {
+      return;
+    }
+
+    mVelocityTracker.computeCurrentVelocity(1); // points/millisecond
+    mXVelocity = mVelocityTracker.getXVelocity();
+    mYVelocity = mVelocityTracker.getYVelocity();
+  }
+
   /* Needs to call ACTION_UP/CANCEL to update the mXVelocity */
   public float getXVelocity() {
     return mXVelocity;
