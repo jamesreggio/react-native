@@ -125,4 +125,9 @@ public class ReactViewPagerManager extends ViewGroupManager<ReactViewPager> {
   public void setPeekEnabled(ReactViewPager pager, boolean peekEnabled) {
     pager.setClipToPadding(!peekEnabled);
   }
+
+  @ReactProp(name = "pageWidth", defaultFloat = 1)
+  public void setPageWidth(ReactViewPager pager, float pageWidth) {
+    pager.setPageWidth(pageWidth);
+  }
 }
