@@ -32,6 +32,8 @@ public class ScrollEvent extends Event<ScrollEvent> {
 
   private int mScrollX;
   private int mScrollY;
+  private int mFinalX;
+  private int mFinalY;
   private double mXVelocity;
   private double mYVelocity;
   private int mContentWidth;
@@ -45,6 +47,8 @@ public class ScrollEvent extends Event<ScrollEvent> {
       ScrollEventType scrollEventType,
       int scrollX,
       int scrollY,
+      int finalX,
+      int finalY,
       float xVelocity,
       float yVelocity,
       int contentWidth,
@@ -60,6 +64,8 @@ public class ScrollEvent extends Event<ScrollEvent> {
         scrollEventType,
         scrollX,
         scrollY,
+        finalX,
+        finalY,
         xVelocity,
         yVelocity,
         contentWidth,
@@ -82,6 +88,8 @@ public class ScrollEvent extends Event<ScrollEvent> {
       ScrollEventType scrollEventType,
       int scrollX,
       int scrollY,
+      int finalX,
+      int finalY,
       float xVelocity,
       float yVelocity,
       int contentWidth,
@@ -92,6 +100,8 @@ public class ScrollEvent extends Event<ScrollEvent> {
     mScrollEventType = scrollEventType;
     mScrollX = scrollX;
     mScrollY = scrollY;
+    mFinalX = finalX;
+    mFinalY = finalY;
     mXVelocity = xVelocity;
     mYVelocity = yVelocity;
     mContentWidth = contentWidth;
@@ -154,6 +164,13 @@ public class ScrollEvent extends Event<ScrollEvent> {
     event.putMap("contentSize", contentSize);
     event.putMap("layoutMeasurement", layoutMeasurement);
     event.putMap("velocity", velocity);
+
+    if (mFinalX != -1 && mFinalY != -1) {
+      WritableMap targetContentOffset = Arguments.createMap();
+      targetContentOffset.putDouble("x", PixelUtil.toDIPFromPixel(mFinalX));
+      targetContentOffset.putDouble("y", PixelUtil.toDIPFromPixel(mFinalY));
+      event.putMap("targetContentOffset", targetContentOffset);
+    }
 
     event.putInt("target", getViewTag());
     event.putBoolean("responderIgnoreScroll", true);

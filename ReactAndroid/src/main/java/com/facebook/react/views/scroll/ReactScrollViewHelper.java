@@ -38,10 +38,19 @@ public class ReactScrollViewHelper {
   }
 
   public static void emitScrollEndDragEvent(
+    ViewGroup scrollView,
+    float xVelocity,
+    float yVelocity) {
+    emitScrollEvent(scrollView, ScrollEventType.END_DRAG, xVelocity, yVelocity);
+  }
+
+  public static void emitScrollEndDragEvent(
       ViewGroup scrollView,
       float xVelocity,
-      float yVelocity) {
-    emitScrollEvent(scrollView, ScrollEventType.END_DRAG, xVelocity, yVelocity);
+      float yVelocity,
+      int finalX,
+      int finalY) {
+    emitScrollEvent(scrollView, ScrollEventType.END_DRAG, xVelocity, yVelocity, finalX, finalY);
   }
 
   public static void emitScrollMomentumBeginEvent(ViewGroup scrollView) {
@@ -57,10 +66,20 @@ public class ReactScrollViewHelper {
   }
 
   private static void emitScrollEvent(
+    ViewGroup scrollView,
+    ScrollEventType scrollEventType,
+    float xVelocity,
+    float yVelocity) {
+    emitScrollEvent(scrollView, scrollEventType, xVelocity, yVelocity, -1, -1);
+  }
+
+  private static void emitScrollEvent(
       ViewGroup scrollView,
       ScrollEventType scrollEventType,
       float xVelocity,
-      float yVelocity) {
+      float yVelocity,
+      int finalX,
+      int finalY) {
     View contentView = scrollView.getChildAt(0);
 
     if (contentView == null) {
@@ -74,6 +93,8 @@ public class ReactScrollViewHelper {
             scrollEventType,
             scrollView.getScrollX(),
             scrollView.getScrollY(),
+            finalX,
+            finalY,
             xVelocity,
             yVelocity,
             contentView.getWidth(),

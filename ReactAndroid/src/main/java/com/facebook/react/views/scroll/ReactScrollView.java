@@ -42,6 +42,10 @@ import javax.annotation.Nullable;
  */
 public class ReactScrollView extends NestedScrollView implements ReactClippingViewGroup, ViewGroup.OnHierarchyChangeListener, View.OnLayoutChangeListener {
 
+  // This requires that we post the END_DRAG event one frame later, which may
+  // not be perfectly backwards compatible.
+  private static final boolean TARGET_OFFSET_ENABLED = true;
+
   private static Field sScrollerField;
   private static boolean sTriedToGetScrollerField = false;
 
@@ -251,12 +255,40 @@ public class ReactScrollView extends NestedScrollView implements ReactClippingVi
     mVelocityHelper.calculateVelocity(ev);
     int action = ev.getAction() & MotionEvent.ACTION_MASK;
     if (action == MotionEvent.ACTION_UP && mDragging) {
-      ReactScrollViewHelper.emitScrollEndDragEvent(
-        this,
-        mVelocityHelper.getXVelocity(),
-        mVelocityHelper.getYVelocity());
-      mDragging = false;
-      disableFpsListener();
+      final ReactScrollView self = this;
+
+      Runnable r = new Runnable() {
+        @Override
+        public void run() {
+          int finalX = -1;
+          int finalY = -1;
+
+          if (TARGET_OFFSET_ENABLED && mScroller != null) {
+            if (self.mScroller.isFinished()) {
+              finalX = self.getScrollX();
+              finalY = self.getScrollY();
+            } else {
+              finalX = self.mScroller.getFinalX();
+              finalY = Math.min(self.mScroller.getFinalY(), self.getMaxScrollY());
+            }
+          }
+
+          ReactScrollViewHelper.emitScrollEndDragEvent(
+            self,
+            self.mVelocityHelper.getXVelocity(),
+            self.mVelocityHelper.getYVelocity(),
+            finalX,
+            finalY);
+          self.mDragging = false;
+          disableFpsListener();
+        }
+      };
+
+      if (TARGET_OFFSET_ENABLED && mScroller != null) {
+        postOnAnimationDelayed(r, ReactScrollViewHelper.MOMENTUM_DELAY);
+      } else {
+        r.run();
+      }
     }
 
     return super.onTouchEvent(ev);
