@@ -39,6 +39,21 @@
 #include "RecoverableError.h"
 #include "SystraceSection.h"
 
+#include <time.h>
+#if defined(__APPLE__)
+#include <os/log.h>
+#define LOGF(...) os_log(OS_LOG_DEFAULT, __VA_ARGS__)
+#else
+#include <android/log.h>
+#define LOGF(...) __android_log_print(ANDROID_LOG_ERROR, "banter", __VA_ARGS__)
+#endif
+
+int64_t getTimeNsec() {
+  struct timespec now;
+  clock_gettime(CLOCK_MONOTONIC, &now);
+  return (int64_t) now.tv_sec * 1000000000LL + now.tv_nsec;
+}
+
 #if defined(WITH_JSC_MEMORY_PRESSURE)
 #include <jsc_memory.h>
 #endif
@@ -379,6 +394,7 @@ namespace facebook {
       SystraceSection s("JSCExecutor::loadApplicationScript",
                         "sourceURL", sourceURL);
 
+      auto startLoad = getTimeNsec();
       std::string scriptName = simpleBasename(sourceURL);
       ReactMarker::logTaggedMarker(ReactMarker::RUN_JS_BUNDLE_START, scriptName.c_str());
       String jsSourceURL(m_context, sourceURL.c_str());
@@ -431,6 +447,7 @@ namespace facebook {
 #endif
       {
         String jsScript;
+        auto startAdopt = getTimeNsec();
         JSContextLock lock(m_context);
         {
           SystraceSection s_("JSCExecutor::loadApplicationScript-createExpectingAscii");
@@ -438,13 +455,25 @@ namespace facebook {
           jsScript = adoptString(std::move(script));
           ReactMarker::logMarker(ReactMarker::JS_BUNDLE_STRING_CONVERT_STOP);
         }
+        auto endAdopt = getTimeNsec();
+        double durationAdopt = ((double) (endAdopt - startAdopt)) / 1000000;
+        LOGF("JSC_EXEC_ADOPT_TIME: %lf", durationAdopt);
+
 #ifdef WITH_FBSYSTRACE
         fbsystrace_end_section(TRACE_TAG_REACT_CXX_BRIDGE);
 #endif
 
         SystraceSection s_("JSCExecutor::loadApplicationScript-evaluateScript");
+        auto startEval = getTimeNsec();
         evaluateScript(m_context, jsScript, jsSourceURL);
+        auto endEval = getTimeNsec();
+        double durationEval = ((double) (endEval - startEval)) / 1000000;
+        LOGF("JSC_EXEC_EVAL_TIME: %lf", durationEval);
       }
+
+      auto endLoad = getTimeNsec();
+      double durationLoad = ((double) (endLoad - startLoad)) / 1000000;
+      LOGF("JSC_EXEC_TOTAL_LOAD_TIME: %lf", durationLoad);
 
       flush();
 
