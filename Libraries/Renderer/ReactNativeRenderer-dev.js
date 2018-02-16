@@ -3729,9 +3729,9 @@ function getComponentName(fiber) {
 }
 
 // Re-export dynamic flags from the fbsource version.
-var _require = require("ReactFeatureFlags");
+var featureFlags = require("ReactFeatureFlags");
 
-var debugRenderPhaseSideEffects = _require.debugRenderPhaseSideEffects;
+var debugRenderPhaseSideEffects = featureFlags.debugRenderPhaseSideEffects;
 
 var enableAsyncSubtreeAPI = true;
 

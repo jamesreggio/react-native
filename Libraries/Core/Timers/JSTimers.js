@@ -247,7 +247,7 @@ const JSTimers = {
   setTimeout: function(
     func: Function,
     duration: number,
-    ...args?: any
+    ...args: any
   ): number {
     if (__DEV__ && IS_ANDROID && duration > MAX_TIMER_DURATION_MS) {
       console.warn(
@@ -273,7 +273,7 @@ const JSTimers = {
   setInterval: function(
     func: Function,
     duration: number,
-    ...args?: any
+    ...args: any
   ): number {
     if (__DEV__ && IS_ANDROID && duration > MAX_TIMER_DURATION_MS) {
       console.warn(
@@ -296,7 +296,7 @@ const JSTimers = {
    * @param {function} func Callback to be invoked before the end of the
    * current JavaScript execution loop.
    */
-  setImmediate: function(func: Function, ...args?: any) {
+  setImmediate: function(func: Function, ...args: any) {
     const id = _allocateCallback(
       () => func.apply(undefined, args),
       'setImmediate',
