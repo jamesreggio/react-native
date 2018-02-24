@@ -309,6 +309,31 @@ class StatusBar extends React.Component<{
     showHideTransition: 'fade',
   };
 
+  static pushStackEntry(props) {
+    const entry = createStackEntry(props);
+    StatusBar._propsStack.push(entry);
+    StatusBar._updatePropsStack();
+    return entry;
+  }
+
+  static popStackEntry(entry) {
+    const index = StatusBar._propsStack.indexOf(entry);
+    if (index !== -1) {
+      StatusBar._propsStack.splice(index, 1);
+    }
+    StatusBar._updatePropsStack();
+  }
+
+  static replaceStackEntry(entry, props) {
+    const newEntry = createStackEntry(props);
+    const index = StatusBar._propsStack.indexOf(entry);
+    if (index !== -1) {
+      StatusBar._propsStack[index] = newEntry;
+    }
+    StatusBar._updatePropsStack();
+    return newEntry;
+  }
+
   _stackEntry = null;
 
   componentDidMount() {
@@ -316,32 +341,23 @@ class StatusBar extends React.Component<{
     // and always update the native status bar with the props from the top of then
     // stack. This allows having multiple StatusBar components and the one that is
     // added last or is deeper in the view hierachy will have priority.
-    this._stackEntry = createStackEntry(this.props);
-    StatusBar._propsStack.push(this._stackEntry);
-    this._updatePropsStack();
+    this._stackEntry = StatusBar.pushStackEntry(this.props);
   }
 
   componentWillUnmount() {
     // When a StatusBar is unmounted, remove itself from the stack and update
     // the native bar with the next props.
-    const index = StatusBar._propsStack.indexOf(this._stackEntry);
-    StatusBar._propsStack.splice(index, 1);
-
-    this._updatePropsStack();
+    StatusBar.popStackEntry(this._stackEntry);
   }
 
   componentDidUpdate() {
-    const index = StatusBar._propsStack.indexOf(this._stackEntry);
-    this._stackEntry = createStackEntry(this.props);
-    StatusBar._propsStack[index] = this._stackEntry;
-
-    this._updatePropsStack();
+    this._stackEntry = StatusBar.replaceStackEntry(this._stackEntry, this.props);
   }
 
   /**
    * Updates the native status bar with the props from the stack.
    */
-  _updatePropsStack = () => {
+  static _updatePropsStack = () => {
     // Send the update to the native module only once at the end of the frame.
     clearImmediate(StatusBar._updateImmediate);
     StatusBar._updateImmediate = setImmediate(() => {
